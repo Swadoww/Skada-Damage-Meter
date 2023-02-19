@@ -2795,7 +2795,7 @@ do
 
 	local bit_band = bit.band
 	local GetInstanceInfo = GetInstanceInfo
-	local GetBattlefieldArenaFaction = GetBattlefieldArenaFaction
+	local UnitFactionGroup = UnitFactionGroup
 	local GetCreatureId = Skada.GetCreatureId
 	local BITMASK_CONTROL_PLAYER = COMBATLOG_OBJECT_CONTROL_PLAYER or 0x00000100
 
@@ -2806,7 +2806,7 @@ do
 				set.type = Skada.insType
 				set.gotboss = false -- skip boss check
 				set.mobname = GetInstanceInfo()
-				set.faction = GetBattlefieldArenaFaction()
+				set.faction = UnitFactionGroup("player") == "Alliance"
 				if set.type == "arena" then
 					Skada:SendMessage("COMBAT_ARENA_START", set, set.mobname)
 				end
