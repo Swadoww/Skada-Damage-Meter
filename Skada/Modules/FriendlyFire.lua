@@ -5,14 +5,14 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, C)
 	local mode_target = mode:NewModule("Target List")
 	local mode_spell = mode:NewModule("Spell List")
 	local mode_spell_target = mode_spell:NewModule("Target List")
-	local ignored_spells = Skada.ignored_spells.damage -- Edit Skada\Core\Tables.lua
-	local passive_spells = Skada.ignored_spells.time -- Edit Skada\Core\Tables.lua
 	local get_actor_friendfire_targets = nil
 	local get_spell_friendfire_targets = nil
+	local mode_cols = nil
 
 	local pairs, wipe, format, uformat = pairs, wipe, string.format, Private.uformat
 	local new, del, clear = Private.newTable, Private.delTable, Private.clearTable
-	local mode_cols = nil
+	local ignored_spells = Skada.ignored_spells.damage -- Edit Skada\Core\Tables.lua
+	local passive_spells = Skada.ignored_spells.time -- Edit Skada\Core\Tables.lua
 
 	local function format_valuetext(d, columns, total, dps, metadata, subview)
 		d.valuetext = Skada:FormatValueCols(
@@ -205,7 +205,7 @@ Skada:RegisterModule("Friendly Fire", function(L, P, _, C)
 			click1 = mode_spell,
 			click2 = mode_target,
 			columns = {Damage = true, DPS = false, Percent = true, sDPS = false, sPercent = true},
-			icon = [[Interface\Icons\inv_gizmo_supersappercharge]]
+			icon = [[Interface\ICONS\inv_gizmo_supersappercharge]]
 		}
 
 		mode_cols = self.metadata.columns

@@ -7,7 +7,7 @@ local setmetatable = setmetatable
 local IS_WRATH = ns.Private.IsWotLK()
 
 -------------------------------------------------------------------------------
--- ingoredSpells
+-- ingored spells
 -- a table of spells that are ignored per module.
 -- entries should be like so: [spellid] = true
 
@@ -83,6 +83,24 @@ local ignored_spells = {
 		[26364] = true, -- Lightning Shield
 		[35916] = true, -- Molten Armor
 	}
+}
+
+-------------------------------------------------------------------------------
+-- ignored creautre ids (use creature ID: [cretureID] = true)
+-- a list of creature IDs of which CLEU <<DAMAGE>> events are ignored.
+
+local ignored_creatures = {
+	-- Vault of the Incarnates: Volatile Spark (10.0.0.46313)
+	[194999] = true,
+
+	-- Demon Hunter: Havoc Talent - Fodder of the Flame (10.0.0.46247)
+	[168932] = true, -- Doomguard <Condemned Demon>
+	[169421] = true, -- Felguard <Condemned Demon>
+	[169425] = true, -- Felhound <Condemned Demon>
+	[169426] = true, -- Infernal <Condemned Demon>
+	[169428] = true, -- Wrathguard <Condemned Demon>
+	[169429] = true, -- Shivarra <Condemned Demon>
+	[169430] = true, -- Ur'zul <Condemned Demon>
 }
 
 -------------------------------------------------------------------------------
@@ -547,14 +565,23 @@ do
 	-- Useful in case you want to collect stuff done to units
 	-- at certain encounter phases for example.
 	--
-	-- table structure
+	-- table structure (all fields are optional and will be generated and cached by the addon)
+	--	start: 		when to start collecting (0.01 = 1%, default: 100%)
+	--	stop:		when to stop collecting (0.01 = 1%, default: 0%)
+	--	power:		whether to track the speficied power or health
+	--		0 - Mana
+	--		1 - Rage
+	--		2 - Focus
+	--		3 - Energy
+	--		4 - Happiness
+	--		5 - Runes
+	--		6 - Runic Power
+	--
 	-- 	name: 		name of the fake unit (optional)
 	-- 	text: 		text to use *format()* with (optional)
-	-- 	start: 		when to start collecting (1 = 100%)
-	-- 	stop: 		when to stop collecting (0.5 = 50%)
-	-- 	diff: 		table of allowed difficulties (omit for all)
-	-- 	power: 		which type of power to trach (omit for health)
 	-- 	values: 	table of difficulties to max health (optional)
+	-- 	diff: 		table of whitelisted difficulties (optional, default: all)
+	--		{["10h"] = true, ["25h"] = true}
 	--
 	-- **optional** fields will be generated and cached by the addon.
 	--
@@ -593,13 +620,19 @@ do
 		-- Halion: Halion and Inferno
 		grouped_units[39863] = L["Halion and Inferno"] -- Halion
 		grouped_units[40681] = L["Halion and Inferno"] -- Living Inferno
+		-- Anub'arak: Adds
+		grouped_units[34605] = L["Adds"] -- Swarm Scarab
+		grouped_units[34607] = L["Adds"] -- Nerubian Burrower
 
 		-- ------------ --
 		-- custom units --
 		-- ------------ --
 
 		-- Icecrown Citadel
-		custom_units[36855] = {text = L["%s - Phase 2"], start = 0, power = 0} -- Lady Deathwhisper
+		custom_units[36855] = { -- Lady Deathwhisper
+			{text = L["%s - Phase 1"], start = 1, power = 0},
+			{text = L["%s - Phase 2"], start = 1}
+		}
 		custom_units[36678] = {text = L["%s - Phase 3"], start = 0.35} -- Professor Putricide
 		custom_units[36853] = {text = L["%s - Phase 2"], start = 0.35} -- Sindragosa
 		custom_units[36597] = {text = L["%s - Phase 3"], start = 0.4, stop = 0.1} -- The Lich King
@@ -607,6 +640,9 @@ do
 
 		-- Trial of the Crusader
 		custom_units[34564] = {text = L["%s - Phase 2"], start = 0.3} -- Anub'arak
+
+		-- The Ruby Sanctum
+		custom_units[39751] = {text = L["%s (Main Boss)"]} -- Baltharus the Warborn
 	end
 
 	------------------------------------------------------
@@ -766,9 +802,13 @@ if LBI then setmetatable(ns.creature_to_boss, {__index = LBI.BossIDs}) end
 -------------------------------------------------------------------------------
 
 -- ignored spells table
+local dummyTable = ns.dummyTable
 ns.ignored_spells = setmetatable(ignored_spells, {__index = function(t, key)
-	return ns.dummyTable
+	return dummyTable
 end})
+
+-- ignored creatures table
+ns.ignored_creatures = ignored_creatures
 
 -- miss type to table key
 ns.missTypes = {
@@ -804,9 +844,10 @@ ns.ignored_events = {
 -- events used to start combat in aggressive combat detection
 -- mode as well as boss encounter detection.
 ns.trigger_events = {
-	RANGE_DAMAGE = true,
-	SPELL_BUILDING_DAMAGE = true,
+	SWING_DAMAGE = true,
 	SPELL_DAMAGE = true,
+	RANGE_DAMAGE = true,
 	SPELL_PERIODIC_DAMAGE = true,
-	SWING_DAMAGE = true
+    DAMAGE_SHIELD = true,
+	SPELL_BUILDING_DAMAGE = true
 }

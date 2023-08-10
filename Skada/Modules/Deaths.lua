@@ -1,6 +1,6 @@
-local _, Skada = ...
+local folder, Skada = ...
 local Private = Skada.Private
-Skada:RegisterModule("Deaths", function(L, P, _, _, M)
+Skada:RegisterModule("Deaths", function(L, P, _, _, M, O)
 	local mode = Skada:NewModule("Deaths")
 	local mode_actor = mode:NewModule("Player's deaths")
 	local mode_deathlog = mode:NewModule("Death log")
@@ -15,7 +15,7 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 	local new, del, clear = Private.newTable, Private.delTable, Private.clearTable
 	local UnitIsFeignDeath, UnitHealthInfo = UnitIsFeignDeath, Skada.UnitHealthInfo
 	local GetSpellLink, SpellSplit = Private.SpellLink, Private.SpellSplit
-	local IsInGroup, IsInPvP = Skada.IsInGroup, Skada.IsInPvP
+	local IsInGroup, IsInPvP = IsInGroup, Skada.IsInPvP
 	local GetTime, time, date, wipe = GetTime, time, date, wipe
 	local spellnames, spellicons = Skada.spellnames, Skada.spellicons
 	local mode_cols, submode_cols = nil, nil
@@ -29,8 +29,8 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 	local YELLOW_COLOR = YELLOW_FONT_COLOR
 	local PURPLE_COLOR = {r = 0.69, g = 0.38, b = 1}
 	local BLUE_COLOR = {r = 0.176, g = 0.318, b = 1}
-	local icon_mode = [[Interface\Icons\Ability_Rogue_FeignDeath]]
-	local icon_death = [[Interface\Icons\Spell_Shadow_Soulleech_1]]
+	local icon_mode = [[Interface\ICONS\Ability_Rogue_FeignDeath]]
+	local icon_death = [[Interface\ICONS\Spell_Shadow_Soulleech_1]]
 
 	-- returns a color table by its key
 	local function get_color(key)
@@ -717,7 +717,7 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 	function mode:GetSetSummary(set, win)
 		if not set then return end
 		local deaths = set:GetTotal(win and win.class, nil, "death") or 0
-		return Skada._Time or GetTime(), deaths
+		return set.endtime or Skada._time or time(), deaths
 	end
 
 	function mode:AddToTooltip(set, tooltip)
@@ -910,6 +910,9 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 		end
 	end
 
+	local announce_fmt1 = "%s > %s (%s) %s"
+	local announce_fmt2 = format("%s: %%s > %%s (%%s) %%s", folder)
+
 	function mode:Announce(logs, actorname)
 		-- announce only if:
 		-- 	1. we have a valid deathlog.
@@ -933,7 +936,7 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 
 		-- prepare the output.
 		local output = format(
-			(channel == "SELF") and "%s > %s (%s) %s" or "Skada: %s > %s (%s) %s",
+			(channel == "SELF") and announce_fmt1 or announce_fmt2,
 			log.src or L["Unknown"], -- source name
 			actorname or L["Unknown"], -- actor name
 			log.id and spellnames[abs(log.id)] or L["Unknown"], -- spell name
@@ -1081,17 +1084,17 @@ Skada:RegisterModule("Deaths", function(L, P, _, _, M)
 			M.deathlogthreshold = M.deathlogthreshold or 1000
 			M.deathchannel = M.deathchannel or "AUTO"
 
-			Skada.options.args.modules.args.deathlog = get_options()
+			O.modules.args.deathlog = get_options()
 
 			-- add colors to tweaks
-			local color_opt = Skada.options.args.tweaks.args.advanced.args.colors
+			local color_opt = O.tweaks.args.advanced.args.colors
 			if not color_opt then return end
 			color_opt.args.deathlog = {
 				type = "group",
 				name = L["Death log"],
 				order = 50,
-				hidden = Skada.options.args.tweaks.args.advanced.args.colors.args.custom.disabled,
-				disabled = Skada.options.args.tweaks.args.advanced.args.colors.args.custom.disabled,
+				hidden = O.tweaks.args.advanced.args.colors.args.custom.disabled,
+				disabled = O.tweaks.args.advanced.args.colors.args.custom.disabled,
 				get = function(i)
 					local color = get_color(i[#i])
 					return color.r, color.g, color.b

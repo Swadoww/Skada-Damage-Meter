@@ -19,6 +19,9 @@ local EmptyFunc = Multibar_EmptyFunc
 local Private, L = ns.Private, ns.Locale
 local _
 
+-- location of media files (textures, fonts...)
+ns.mediapath = format([[Interface\AddOns\%s\Media]], folder)
+
 -- options table
 ns.options = {
 	type = "group",
@@ -259,6 +262,21 @@ function Private.TablePool()
 		return t
 	end
 
+	-- deep copies a table.
+	pool.copy = function(orig)
+		local orig_type, copy = type(orig), nil
+		if orig_type == "table" then
+			copy = {}
+			for k, v in next, orig, nil do
+				copy[pool.copy(k)] = pool.copy(v)
+			end
+			setmetatable(copy, pool.copy(getmetatable(orig)))
+		else
+			copy = orig
+		end
+		return copy
+	end
+
 	return pool
 end
 
@@ -270,6 +288,7 @@ do
 	Private.newTable = tablePool.new
 	Private.delTable = tablePool.del
 	Private.clearTable = tablePool.clear
+	Private.copyTable = tablePool.copy
 end
 
 -- alternative table reuse
@@ -300,8 +319,12 @@ do
 	}
 
 	function Private.TempTable(...)
-		local t = next(tables) or setmetatable({}, table_mt)
-		if t then tables[t] = nil end
+		local t = next(tables)
+		if t then
+			tables[t] = nil
+		else
+			t = setmetatable({}, table_mt)
+		end
 		for i = 1, select("#", ...) do
 			t[i] = (select(i, ...))
 		end
@@ -316,7 +339,7 @@ function Private.RegisterClasses()
 	Private.RegisterClasses = nil
 
 	-- class, role and spec icons (sprite)
-	ns.classicons = [[Interface\AddOns\Skada\Media\Textures\icons]]
+	ns.classicons = format([[%s\Textures\icons]], ns.mediapath)
 	ns.roleicons = ns.classicons
 	ns.specicons = ns.classicons
 
@@ -699,35 +722,35 @@ function Private.RegisterMedias()
 	end
 
 	-- fonts
-	LSM:Register("font", "ABF", [[Interface\Addons\Skada\Media\Fonts\ABF.ttf]])
-	LSM:Register("font", "Accidental Presidency", [[Interface\Addons\Skada\Media\Fonts\Accidental Presidency.ttf]])
-	LSM:Register("font", "Adventure", [[Interface\Addons\Skada\Media\Fonts\Adventure.ttf]])
-	LSM:Register("font", "Diablo", [[Interface\Addons\Skada\Media\Fonts\Diablo.ttf]])
-	LSM:Register("font", "FORCED SQUARE", [[Interface\Addons\Skada\Media\Fonts\FORCED SQUARE.ttf]])
-	LSM:Register("font", "Hooge", [[Interface\Addons\Skada\Media\Fonts\Hooge.ttf]])
+	LSM:Register("font", "ABF", format([[%s\Fonts\ABF.ttf]], ns.mediapath))
+	LSM:Register("font", "Accidental Presidency", format([[%s\Fonts\Accidental Presidency.ttf]], ns.mediapath))
+	LSM:Register("font", "Adventure", format([[%s\Fonts\Adventure.ttf]], ns.mediapath))
+	LSM:Register("font", "Diablo", format([[%s\Fonts\Diablo.ttf]], ns.mediapath))
+	LSM:Register("font", "FORCED SQUARE", format([[%s\Fonts\FORCED SQUARE.ttf]], ns.mediapath))
+	LSM:Register("font", "Hooge", format([[%s\Fonts\Hooge.ttf]], ns.mediapath))
 
 	-- statusbars
-	LSM:Register("statusbar", "Aluminium", [[Interface\Addons\Skada\Media\Statusbar\Aluminium]])
-	LSM:Register("statusbar", "Armory", [[Interface\Addons\Skada\Media\Statusbar\Armory]])
-	LSM:Register("statusbar", "BantoBar", [[Interface\Addons\Skada\Media\Statusbar\BantoBar]])
-	LSM:Register("statusbar", "Flat", [[Interface\Addons\Skada\Media\Statusbar\Flat]])
-	LSM:Register("statusbar", "Gloss", [[Interface\Addons\Skada\Media\Statusbar\Gloss]])
-	LSM:Register("statusbar", "Graphite", [[Interface\Addons\Skada\Media\Statusbar\Graphite]])
-	LSM:Register("statusbar", "Grid", [[Interface\Addons\Skada\Media\Statusbar\Grid]])
-	LSM:Register("statusbar", "Healbot", [[Interface\Addons\Skada\Media\Statusbar\Healbot]])
-	LSM:Register("statusbar", "LiteStep", [[Interface\Addons\Skada\Media\Statusbar\LiteStep]])
-	LSM:Register("statusbar", "Minimalist", [[Interface\Addons\Skada\Media\Statusbar\Minimalist]])
-	LSM:Register("statusbar", "Otravi", [[Interface\Addons\Skada\Media\Statusbar\Otravi]])
-	LSM:Register("statusbar", "Outline", [[Interface\Addons\Skada\Media\Statusbar\Outline]])
-	LSM:Register("statusbar", "Round", [[Interface\Addons\Skada\Media\Statusbar\Round]])
-	LSM:Register("statusbar", "Serenity", [[Interface\AddOns\Skada\Media\Statusbar\Serenity]])
-	LSM:Register("statusbar", "Smooth", [[Interface\Addons\Skada\Media\Statusbar\Smooth]])
+	LSM:Register("statusbar", "Aluminium", format([[%s\Statusbar\Aluminium]], ns.mediapath))
+	LSM:Register("statusbar", "Armory", format([[%s\Statusbar\Armory]], ns.mediapath))
+	LSM:Register("statusbar", "BantoBar", format([[%s\Statusbar\BantoBar]], ns.mediapath))
+	LSM:Register("statusbar", "Flat", format([[%s\Statusbar\Flat]], ns.mediapath))
+	LSM:Register("statusbar", "Gloss", format([[%s\Statusbar\Gloss]], ns.mediapath))
+	LSM:Register("statusbar", "Graphite", format([[%s\Statusbar\Graphite]], ns.mediapath))
+	LSM:Register("statusbar", "Grid", format([[%s\Statusbar\Grid]], ns.mediapath))
+	LSM:Register("statusbar", "Healbot", format([[%s\Statusbar\Healbot]], ns.mediapath))
+	LSM:Register("statusbar", "LiteStep", format([[%s\Statusbar\LiteStep]], ns.mediapath))
+	LSM:Register("statusbar", "Minimalist", format([[%s\Statusbar\Minimalist]], ns.mediapath))
+	LSM:Register("statusbar", "Otravi", format([[%s\Statusbar\Otravi]], ns.mediapath))
+	LSM:Register("statusbar", "Outline", format([[%s\Statusbar\Outline]], ns.mediapath))
+	LSM:Register("statusbar", "Round", format([[%s\Statusbar\Round]], ns.mediapath))
+	LSM:Register("statusbar", "Serenity", format([[%s\Statusbar\Serenity]], ns.mediapath))
+	LSM:Register("statusbar", "Smooth", format([[%s\Statusbar\Smooth]], ns.mediapath))
 	LSM:Register("statusbar", "Solid", [[Interface\Buttons\WHITE8X8]])
-	LSM:Register("statusbar", "TukTex", [[Interface\Addons\Skada\Media\Statusbar\TukTex]])
+	LSM:Register("statusbar", "TukTex", format([[%s\Statusbar\TukTex]], ns.mediapath))
 
 	-- borders
-	LSM:Register("border", "Glow", [[Interface\Addons\Skada\Media\Border\Glow]])
-	LSM:Register("border", "Roth", [[Interface\Addons\Skada\Media\Border\Roth]])
+	LSM:Register("border", "Glow", format([[%s\Border\Glow]], ns.mediapath))
+	LSM:Register("border", "Roth", format([[%s\Border\Roth]], ns.mediapath))
 
 	-- sounds
 	LSM:Register("sound", "Cartoon FX", [[Sound\Doodad\Goblin_Lottery_Open03.wav]])
@@ -1451,18 +1474,32 @@ do
 
 	-- spell icon and name to speed up things
 	local SpellInfo = Private.SpellInfo
-	ns.spellnames = setmetatable({}, {__index = function(t, spellid)
-		local name, _, icon = SpellInfo(spellid)
-		ns.spellicons[spellid] = icon
-		t[spellid] = name
-		return name
-	end})
-	ns.spellicons = setmetatable({}, {__index = function(t, spellid)
-		local name, _, icon = SpellInfo(spellid)
-		ns.spellnames[spellid] = name
-		t[spellid] = icon
-		return icon
-	end})
+	ns.spellnames = setmetatable({}, {
+		__index = function(t, spellid)
+			local name, _, icon = SpellInfo(spellid)
+			if name then
+				rawset(t, spellid, name)
+				rawset(ns.spellicons, spellid, icon)
+			end
+			return name
+		end,
+		__newindex = function(t, spellid, name)
+			rawset(t, spellid, name)
+		end
+	})
+	ns.spellicons = setmetatable({}, {
+		__index = function(t, spellid)
+			local name, _, icon = SpellInfo(spellid)
+			if name then
+				rawset(t, spellid, icon)
+				rawset(ns.spellnames, spellid, name)
+			end
+			return icon
+		end,
+		__newindex = function(t, spellid, icon)
+			rawset(t, spellid, icon)
+		end
+	})
 end
 
 -------------------------------------------------------------------------------
@@ -1487,16 +1524,25 @@ do
 		return (band(flags or 0, BITMASK_NPC) ~= 0)
 	end
 
+	-- used to protect tables
+	local table_mt = {__metatable = true}
+
 	-- players: [guid] = class / pets: [guid] = owner guid
-	local guidToClass = Private.guidToClass or {}
+	local guidToClass = setmetatable(Private.guidToClass or {}, table_mt)
 	Private.guidToClass = guidToClass
 
 	-- players only: [guid] = name
-	local guidToName = Private.guidToName or {}
+	local guidToName = setmetatable(Private.guidToName or {}, table_mt)
 	Private.guidToName = guidToName
 
 	-- pets only: [pet guid] = owner guid
-	local guidToOwner = Private.guidToOwner or {}
+	local guidToOwner = setmetatable(Private.guidToOwner or {}, {
+		__metatable = true,
+		__newindex = function(t, guid, owner)
+			rawset(guidToClass, guid, owner)
+			rawset(t, guid, owner)
+		end
+	})
 	Private.guidToOwner = guidToOwner
 
 	do
@@ -1593,7 +1639,7 @@ do
 	function Private.AddCombatant(unit, ownerUnit)
 		local guid = UnitGUID(unit)
 		if guid and ownerUnit then
-			guidToClass[guid] = UnitGUID(ownerUnit)
+			guidToOwner[guid] = UnitGUID(ownerUnit)
 		elseif guid then
 			local _, class = UnitClass(unit)
 			guidToClass[guid] = class

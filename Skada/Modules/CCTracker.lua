@@ -194,7 +194,7 @@ Skada:RegisterModule("CC Done", function(L, P, _, C)
 			click1 = mode_spell,
 			click2 = mode_target,
 			columns = {Count = true, Percent = false, sPercent = false},
-			icon = [[Interface\Icons\spell_frost_chainsofice]]
+			icon = [[Interface\ICONS\spell_frost_chainsofice]]
 		}
 
 		mode_cols = self.metadata.columns
@@ -234,7 +234,7 @@ Skada:RegisterModule("CC Done", function(L, P, _, C)
 				tbl[actorname].role = actor.role
 				tbl[actorname].spec = actor.spec
 				tbl[actorname].enemy = actor.enemy
-				tbl[actorname].count = spell.n
+				tbl[actorname].n = spell.n
 				total = total + spell.n
 			end
 		end
@@ -456,7 +456,7 @@ Skada:RegisterModule("CC Taken", function(L, P, _, C)
 			click1 = mode_spell,
 			click2 = mode_source,
 			columns = {Count = true, Percent = false, sPercent = false},
-			icon = [[Interface\Icons\spell_magic_polymorphrabbit]]
+			icon = [[Interface\ICONS\spell_magic_polymorphrabbit]]
 		}
 
 		mode_cols = self.metadata.columns
@@ -496,7 +496,7 @@ Skada:RegisterModule("CC Taken", function(L, P, _, C)
 				tbl[actorname].role = actor.role
 				tbl[actorname].spec = actor.spec
 				tbl[actorname].enemy = actor.enemy
-				tbl[actorname].count = spell.n
+				tbl[actorname].n = spell.n
 				total = total + spell.n
 			end
 		end
@@ -533,7 +533,7 @@ end)
 -- ========= --
 -- CC Breaks --
 -- ========= --
-Skada:RegisterModule("CC Breaks", function(L, P, _, C, M)
+Skada:RegisterModule("CC Breaks", function(L, P, _, C, M, O)
 	local mode = Skada:NewModule("CC Breaks")
 	local mode_spell = mode:NewModule("Spell List")
 	local mode_target = mode:NewModule("Target List")
@@ -541,7 +541,7 @@ Skada:RegisterModule("CC Breaks", function(L, P, _, C, M)
 	local get_actor_cc_break_targets = nil
 	local mode_cols = nil
 
-	local UnitName, UnitInRaid, IsInRaid = UnitName, UnitInRaid, Skada.IsInRaid
+	local UnitName, UnitInRaid, IsInRaid = UnitName, UnitInRaid, IsInRaid
 	local GetPartyAssignment, UnitIterator = GetPartyAssignment, Skada.UnitIterator
 
 	local function log_ccbreak(set)
@@ -710,7 +710,7 @@ Skada:RegisterModule("CC Breaks", function(L, P, _, C, M)
 			click1 = mode_spell,
 			click2 = mode_target,
 			columns = {Count = true, Percent = false, sPercent = false},
-			icon = [[Interface\Icons\spell_holy_sealofvalor]]
+			icon = [[Interface\ICONS\spell_holy_sealofvalor]]
 		}
 
 		mode_cols = self.metadata.columns
@@ -734,7 +734,7 @@ Skada:RegisterModule("CC Breaks", function(L, P, _, C, M)
 	end
 
 	function mode:OnInitialize()
-		Skada.options.args.modules.args.ccoptions = {
+		O.modules.args.ccoptions = {
 			type = "group",
 			name = self.localeName,
 			desc = format(L["Options for %s."], self.localeName),
@@ -743,7 +743,7 @@ Skada:RegisterModule("CC Breaks", function(L, P, _, C, M)
 					type = "description",
 					name = self.localeName,
 					fontSize = "large",
-					image = [[Interface\Icons\spell_holy_sealofvalor]],
+					image = [[Interface\ICONS\spell_holy_sealofvalor]],
 					imageWidth = 18,
 					imageHeight = 18,
 					imageCoords = {0.05, 0.95, 0.05, 0.95},

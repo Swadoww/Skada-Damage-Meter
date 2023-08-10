@@ -10,15 +10,15 @@ local DBI = LibStub("LibDBIcon-1.0", true)
 local _G = _G
 local pairs, type, tonumber, tostring, min, max = pairs, type, tonumber, tostring, math.min, math.max
 local strmatch, format, gsub, strlower, strfind = strmatch, string.format, string.gsub, string.lower, string.find
-local Private = ns.Private
+local Private, GetCreatureId = ns.Private, Skada.GetCreatureId
 local tsort, tremove, wipe, setmetatable = table.sort, Private.tremove, wipe, setmetatable
 local TempTable, new, del, copy = Private.TempTable, Private.newTable, Private.delTable, Private.tCopy
 local InCombatLockdown, IsGroupInCombat, IsGroupDead = InCombatLockdown, Skada.IsGroupInCombat, Skada.IsGroupDead
 local UnitGUID, GameTooltip, ReloadUI = UnitGUID, GameTooltip, ReloadUI
 local IsShiftKeyDown, IsControlKeyDown = IsShiftKeyDown, IsControlKeyDown
 local SecondsToTime, time, GetTime = SecondsToTime, time, GetTime
-local IsInGroup, IsInRaid, IsInPvP = Skada.IsInGroup, Skada.IsInRaid, Skada.IsInPvP
-local GetNumGroupMembers, CheckDuplicate = Skada.GetNumGroupMembers, Private.CheckDuplicate
+local IsInGroup, IsInRaid, IsInPvP = IsInGroup, IsInRaid, Skada.IsInPvP
+local CheckDuplicate = Private.CheckDuplicate
 local L, callbacks, O = Skada.Locale, Skada.callbacks, Skada.options.args
 local P, G, _
 
@@ -141,16 +141,13 @@ do
 	-- @param 	set 		the set to override/reuse
 	function create_set(setname, set)
 		if set then
-			Skada:Debug("Rused set for", setname, ">>", set, "<<")
 			set = clean_set(set)
 		else
 			set = next(recycle_bin)
 			if set then
-				Skada:Debug("Rused set for", setname, ">>", set, "<<")
 				recycle_bin[set] = nil
 			else
 				set = {}
-				Skada:Debug("Created set for", setname, ">>", set, "<<")
 			end
 		end
 
@@ -236,7 +233,7 @@ local function process_set(set, curtime, mobname)
 			callbacks:Fire("Skada_SetComplete", set, curtime)
 
 			tinsert(Skada.sets, 1, set)
-			Skada:Debug("Segment Saved:", set.name)
+			Skada:Debug(format("Segment Saved: \124cffffbb00%s\124r", set.name))
 		else
 			set = delete_set(set)
 		end
@@ -301,7 +298,6 @@ local function summon_pet(petGUID, ownerGUID)
 	local guidOrClass = guidToClass[ownerGUID]
 	ownerGUID = guidToClass[guidOrClass] and guidOrClass or ownerGUID
 	guidToOwner[petGUID] = ownerGUID
-	guidToClass[petGUID] = ownerGUID
 end
 
 local dismiss_pet
@@ -913,7 +909,8 @@ end
 
 function Window:RightClick(bar, button)
 	if self.selectedmode then
-		if self.class then
+		-- only remove class filter on parent mode.
+		if self.class and self.selectedmode == self.parentmode then
 			self.class = nil
 			self:Wipe()
 			self:UpdateDisplay()
@@ -1069,7 +1066,7 @@ function Skada:ToggleWindow()
 		for i = 1, #windows do
 			local win = windows[i]
 			if win and win:IsShown() then
-				win.db.hidden = true
+				win.db.hidden = (P.showcombat ~= true)
 				win:Hide()
 			elseif win then
 				win.db.hidden = false
@@ -1667,9 +1664,6 @@ function Skada:PLAYER_ENTERING_WORLD()
 	userGUID = self.userGUID or UnitGUID("player")
 	self.userGUID = userGUID
 
-	self._Time = GetTime()
-	self._time = time()
-
 	Skada:CheckZone()
 	if was_in_party == nil then
 		Skada:ScheduleTimer("UpdateRoster", 1)
@@ -1849,7 +1843,7 @@ do
 			local unit = groupUnits[owner] and format("%spet", owner)
 			local guid = unit and UnitGUID(unit)
 			if guid then
-				guidToClass[guid] = UnitGUID(owner)
+				guidToOwner[guid] = UnitGUID(owner)
 			end
 		end
 	end
@@ -1862,7 +1856,7 @@ do
 			local prefix, id, suffix = strmatch(unit, "([^%d]+)([%d]*)(.*)")
 			local vUnitId = format("%spet%s%s", prefix, id, suffix)
 			if UnitExists(vUnitId) then
-				guidToClass[UnitGUID(vUnitId)] = guid
+				guidToOwner[UnitGUID(vUnitId)] = guid
 				vehicles[guid] = UnitGUID(vUnitId)
 			end
 		elseif vehicles[guid] then
@@ -2307,6 +2301,10 @@ function Skada:OnInitialize()
 	-- update references
 	classcolors = self.classcolors
 
+	-- assign times before loading modules.
+	self._Time = GetTime()
+	self._time = time()
+
 	-- early loading of modules
 	self:LoadModules()
 end
@@ -2355,7 +2353,7 @@ local collectgarbage = collectgarbage
 function Skada:CleanGarbage()
 	if InCombatLockdown() then return end
 	collectgarbage("collect")
-	self:Debug("CleanGarbage")
+	self:Debug("Garbage \124cffffbb00Cleaned\124r!")
 end
 
 -- called on boss defeat
@@ -2375,7 +2373,7 @@ local function BossDefeated()
 		end
 	end
 
-	Skada:Debug("COMBAT_BOSS_DEFEATED: Skada")
+	Skada:Debug("\124cffffbb00COMBAT_BOSS_DEFEATED\124r: Skada")
 	Skada:SendMessage("COMBAT_BOSS_DEFEATED", set)
 	Skada:SmartStop(set)
 end
@@ -2419,14 +2417,14 @@ function Skada:PLAYER_REGEN_ENABLED()
 	-- 	1. the segment was previously stopped.
 	-- 	2. the player and the group aren't in combat
 	if self.current.stopped or (not InCombatLockdown() and not IsGroupInCombat()) then
-		self:Debug("EndSegment: PLAYER_REGEN_ENABLED")
+		self:Debug("\124cffffbb00EndSegment\124r: PLAYER_REGEN_ENABLED")
 		combat_end()
 	end
 end
 
 function Skada:PLAYER_REGEN_DISABLED()
 	if not self.disabled and not self.current then
-		self:Debug("StartCombat: PLAYER_REGEN_DISABLED")
+		self:Debug("\124cffffbb00StartCombat\124r: PLAYER_REGEN_DISABLED")
 		combat_start()
 	end
 end
@@ -2456,6 +2454,7 @@ end
 function combat_end()
 	if not Skada.current then return end
 	Private.ClearTempUnits()
+	wipe(GetCreatureId) -- wipe cached creature IDs
 
 	-- trigger events.
 	local curtime = time()
@@ -2527,6 +2526,9 @@ function combat_end()
 		Skada:CancelTimer(toggle_timer, true)
 		toggle_timer = nil
 	end
+
+	Skada._Time = GetTime()
+	Skada._time = time()
 end
 
 function Skada:StopSegment(msg, phase)
@@ -2700,13 +2702,17 @@ do
 	end
 
 	local function combat_tick()
+		Skada._time = time()
 		if not Skada.disabled and Skada.current and not InCombatLockdown() and not IsGroupInCombat() and Skada.insType ~= "pvp" and Skada.insType ~= "arena" then
-			Skada:Debug("EndSegment: combat tick")
+			Skada:Debug("\124cffffbb00EndSegment\124r: Combat Tick")
 			combat_end()
 		end
 	end
 
+	local GetNumGroupMembers = GetNumGroupMembers
 	function combat_start()
+		Skada._time = time()
+
 		death_counter = 0
 		starting_members = GetNumGroupMembers()
 
@@ -2716,12 +2722,12 @@ do
 		end
 
 		if update_timer then
-			Skada:Debug("EndSegment: StartCombat")
+			Skada:Debug("\124cffffbb00EndSegment\124r: StartCombat")
 			combat_end()
 		end
 
 		if Skada.current == nil then
-			Skada:Debug("StartCombat: Segment Created!")
+			Skada:Debug("\124cffffbb00StartCombat\124r: Segment Created!")
 			Skada.current = create_set(L["Current"], tentative_set)
 		end
 		tentative_set = nil
@@ -2800,7 +2806,6 @@ do
 	local bit_band = bit.band
 	local GetInstanceInfo = GetInstanceInfo
 	local UnitFactionGroup = UnitFactionGroup
-	local GetCreatureId = Skada.GetCreatureId
 	local BITMASK_CONTROL_PLAYER = COMBATLOG_OBJECT_CONTROL_PLAYER or 0x00000100
 
 	local function check_boss_fight(set, t, src_is_interesting, dst_is_interesting)
@@ -2895,18 +2900,21 @@ do
 	end
 
 	local next = next
+	local src_is_interesting = nil
+	local dst_is_interesting = nil
+
 	function Skada:OnCombatEvent(t)
 		-- ignored combat event?
 		if (not t.event or ignored_events[t.event]) and not (spellcast_events[t.event] and self.current) then return end
 
-		local src_is_interesting = nil
-		local dst_is_interesting = nil
+		src_is_interesting = nil
+		dst_is_interesting = nil
 
 		if not self.current and trigger_events[t.event] and t.srcName and t.dstName and t.srcGUID ~= t.dstGUID then
-			src_is_interesting = t:SourceInGroup()
+			src_is_interesting = t:SourceInGroup() or t:SourceIsPet(true) or guidToName[t.srcGUID]
 
 			if t.event ~= "SPELL_PERIODIC_DAMAGE" then
-				dst_is_interesting = t:DestInGroup()
+				dst_is_interesting = t:DestInGroup() or t:DestIsPet(true) or guidToName[t.dstGUID]
 			end
 
 			if src_is_interesting or dst_is_interesting then
@@ -2921,11 +2929,11 @@ do
 		end
 
 		-- pet summons.
-		if t.event == "SPELL_SUMMON" and t:DestIsPet(true) then
+		if t.event == "SPELL_SUMMON" and t:SourceInGroup() and t:DestIsPet() then
 			summon_pet(t.dstGUID, t.srcGUID)
 		-- pet died?
 		elseif death_events[t.event] and guidToOwner[t.dstGUID] then
-			dismiss_pet(t.dstGUID)
+			dismiss_pet(t.dstGUID, 1)
 		end
 
 		-- current segment not created?
@@ -2940,13 +2948,11 @@ do
 		if self.current.stopped or not combatlog_events[t.event] then return end
 
 		self._Time = GetTime()
-		self._time = time()
-
 		for func, flags in next, combatlog_events[t.event] do
 			local fail = false
 
 			if flags.src_is_interesting_nopets then
-				if t:SourceInGroup(true) then
+				if t:SourceInGroup(true) or guidToName[t.srcGUID] then
 					src_is_interesting = true
 				else
 					fail = true
@@ -2954,7 +2960,7 @@ do
 			end
 
 			if not fail and flags.dst_is_interesting_nopets then
-				if t:DestInGroup(true) then
+				if t:DestInGroup(true) or guidToName[t.dstGUID] then
 					dst_is_interesting = true
 				else
 					fail = true
@@ -2962,14 +2968,14 @@ do
 			end
 
 			if not fail and (flags.src_is_interesting or flags.src_is_not_interesting) then
-				src_is_interesting = src_is_interesting or t:SourceInGroup() or Private.GetTempUnit(t.srcGUID)
+				src_is_interesting = t:SourceInGroup() or t:SourceIsPet(true) or guidToName[t.srcGUID] or Private.GetTempUnit(t.srcGUID)
 				if (flags.src_is_interesting and not src_is_interesting) or (flags.src_is_not_interesting and src_is_interesting) then
 					fail = true
 				end
 			end
 
 			if not fail and (flags.dst_is_interesting or flags.dst_is_not_interesting) then
-				dst_is_interesting = dst_is_interesting or t:DestInGroup()
+				dst_is_interesting = t:DestInGroup() or t:DestIsPet(true) or guidToName[t.dstGUID]
 				if (flags.dst_is_interesting and not dst_is_interesting) or (flags.dst_is_not_interesting and dst_is_interesting) then
 					fail = true
 				end
@@ -2978,12 +2984,12 @@ do
 			if not fail then
 				if tentative ~= nil then
 					tentative = tentative + 1
-					self:Debug(format("Tentative: %s (%d)", t.event, tentative))
+					self:Debug(format("\124cffffbb00Tentative\124r: %s (%d)", t.event, tentative))
 					if tentative >= 5 then
 						self:CancelTimer(tentative_timer, true)
 						tentative_timer = nil
 						tentative = nil
-						self:Debug("StartCombat: tentative combat")
+						self:Debug("\124cffffbb00StartCombat\124r: tentative combat")
 						combat_start()
 					end
 				end

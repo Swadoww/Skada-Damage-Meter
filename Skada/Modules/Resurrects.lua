@@ -102,7 +102,7 @@ Skada:RegisterModule("Resurrects", function(L, P, _, C)
 			filterclass = true,
 			click1 = mode_target,
 			columns = {Count = true, Percent = false, sPercent = false},
-			icon = [[Interface\Icons\spell_holy_resurrection]]
+			icon = [[Interface\ICONS\spell_holy_resurrection]]
 		}
 
 		mode_cols = self.metadata.columns
@@ -131,7 +131,7 @@ Skada:RegisterModule("Resurrects", function(L, P, _, C)
 	get_actor_ress_targets = function(self, name, id, tbl)
 		local actor = self:GetActor(name, id)
 		local total = actor and actor.ress
-		local targets = total and actor.restargets
+		local targets = total and actor.resstargets
 		if not targets then return end
 
 		tbl = clear(tbl or C)

@@ -7,9 +7,12 @@ local setmetatable, wipe = setmetatable, wipe
 local next, time, GetTime = next, time, GetTime
 local _
 
+local UnitGUID, UnitClass, UnitFullName = UnitGUID, UnitClass, Private.UnitFullName
+local IsInGroup, IsInRaid = IsInGroup, IsInRaid
 local tablePool, TempTable = Skada.tablePool, Private.TempTable
 local new, del = Private.newTable, Private.delTable
 local L, callbacks = Skada.Locale, Skada.callbacks
+local guidToName, guidToClass, guidToOwner = Private.guidToName, Private.guidToClass, Private.guidToOwner
 
 -------------------------------------------------------------------------------
 -- debug function
@@ -95,6 +98,7 @@ do
 	end
 
 	-- adds a module to the loadable modules table.
+	local unpack = unpack
 	function Skada:RegisterModule(...)
 		local module = module_table(...)
 		if not module then return end
@@ -106,7 +110,12 @@ do
 		-- add its check button
 		self.options.args.modules.args.blocked.args[module.name] = {
 			type = "toggle",
-			name = L[module.name],
+			name = function()
+				if module.deps and self:IsDisabled(unpack(module.deps)) then
+					return format("\124cffff0000%s\124r", L[module.name])
+				end
+				return L[module.name]
+			end,
 			desc = module.desc
 		}
 
@@ -154,14 +163,13 @@ do
 	end
 
 	-- loads registered modules
-	local unpack = unpack
 	function Skada:LoadModules(release)
 		-- loadable modules
 		if self.LoadableModules then
 			local mod = tremove(self.LoadableModules, 1)
 			while mod do
 				if mod.name and mod.func and not self:IsDisabled(mod.name) and not (mod.deps and self:IsDisabled(unpack(mod.deps))) then
-					mod.func(L, self.profile, self.global, self.cacheTable, self.profile.modules)
+					mod.func(L, self.profile, self.global, self.cacheTable, self.profile.modules, self.options.args)
 				end
 				mod = tremove(self.LoadableModules, 1)
 			end
@@ -335,7 +343,6 @@ end
 do
 	local tsort = table.sort
 	local SendChatMessage, BNSendWhisper = SendChatMessage, BNSendWhisper
-	local IsInGroup, IsInRaid = Skada.IsInGroup, Skada.IsInRaid
 	local Window, windows = Skada.Window, Skada.windows
 	local EscapeStr = Private.EscapeStr
 
@@ -783,7 +790,6 @@ end
 
 do
 	local UnitIsConnected = UnitIsConnected
-	local IsInGroup, IsInRaid = Skada.IsInGroup, Skada.IsInRaid
 	local collectgarbage = collectgarbage
 
 	local function create_progress_window()
@@ -824,7 +830,7 @@ do
 		elem:SetPoint("TOPLEFT", frame.text, "BOTTOMLEFT", 20, -15)
 		elem:SetPoint("TOPRIGHT", frame.text, "BOTTOMRIGHT", -20, -15)
 		elem:SetHeight(5)
-		elem:SetStatusBarTexture([[Interface\AddOns\Skada\Media\Statusbar\Flat.tga]])
+		elem:SetStatusBarTexture(format([[%s\Statusbar\Flat.tga]], Skada.mediapath))
 		elem:SetStatusBarColor(0, 1, 0)
 		frame.bar = elem
 
@@ -1245,7 +1251,7 @@ function Skada:BigWigs(_, _, event, message)
 				end
 			end
 
-			self:Debug("COMBAT_BOSS_DEFEATED: BigWigs")
+			self:Debug("\124cffffbb00COMBAT_BOSS_DEFEATED\124r: BigWigs")
 			self:SendMessage("COMBAT_BOSS_DEFEATED", self.current)
 
 			self:StopSegment(L["Smart Stop"])
@@ -1273,7 +1279,7 @@ function Skada:DBM(_, mod, wipe)
 				end
 			end
 
-			self:Debug("COMBAT_BOSS_DEFEATED: DBM")
+			self:Debug("\124cffffbb00COMBAT_BOSS_DEFEATED\124r: DBM")
 			self:SendMessage("COMBAT_BOSS_DEFEATED", set)
 
 			self:StopSegment(L["Smart Stop"])
@@ -1300,12 +1306,9 @@ end
 
 do
 	local UnitLevel = UnitLevel
-	local UnitClass = UnitClass
 	local GetUnitRole = Skada.GetUnitRole
 	local GetUnitSpec = Skada.GetUnitSpec
 	local GetUnitIdFromGUID = Skada.GetUnitIdFromGUID
-	local guidToClass = Private.guidToClass
-	local guidToName = Private.guidToName
 	local actorPrototype = Skada.actorPrototype
 	local playerPrototype = Skada.playerPrototype
 	local enemyPrototype = Skada.enemyPrototype
@@ -1428,7 +1431,7 @@ do
 			if not actor.class then
 				actor.enemy = true
 				actor.class = "UNKNOWN"
-				self:Debug(format("Unknown unit spotted: %s (%s)", actorname, actorid))
+				self:Debug(format("Unknown unit detected: \124cffffbb00%s\124r (%s)", actorname, actorid))
 			end
 
 			for _, mode in pairs(modes) do
@@ -1496,69 +1499,63 @@ end
 -- pet functions
 
 do
-	local guidToClass = Private.guidToClass
-	local guidToName = Private.guidToName
 	do
+		local C_TooltipInfo = _G.C_TooltipInfo
+		local TooltipUtil = _G.TooltipUtil
+		local Enum_UnitOwner = 16 -- _G.Enum.TooltipDataLineType.UnitOwner
+
 		local GetPetOwnerFromTooltip
 		do
-			local pettooltip = CreateFrame("GameTooltip", format("%sPetTooltip", folder), nil, "GameTooltipTemplate")
-
-			local ValidatePetOwner
-			do
-				local ownerPatterns = {}
-				do
-					local i = 1
-					local title = _G["UNITNAME_SUMMON_TITLE" .. i]
-					while (title and title ~= "%s" and find(title, "%s")) do
-						ownerPatterns[#ownerPatterns + 1] = title
-						i = i + 1
-						title = _G["UNITNAME_SUMMON_TITLE" .. i]
-					end
+			local function FindPetOwner(guid, actors)
+				-- found in cache?
+				if guidToName[guid] then
+					return guid, guidToName[guid]
 				end
 
-				local EscapeStr = Private.EscapeStr
-				function ValidatePetOwner(text, name)
-					for i = 1, #ownerPatterns do
-						local pattern = ownerPatterns[i]
-						if pattern and EscapeStr(format(pattern, name)) == text then
-							return true
-						end
-					end
-					return false
-				end
-			end
-
-			-- attempts to find the player guid on Russian clients.
-			local GetNumDeclensionSets, DeclineName = GetNumDeclensionSets, DeclineName
-			local function FindNameDeclension(text, actorname)
-				for gender = 2, 3 do
-					for decset = 1, GetNumDeclensionSets(actorname, gender) do
-						local ownerName = DeclineName(actorname, gender, decset)
-						if ValidatePetOwner(text, ownerName) or find(text, ownerName) then
-							return true
-						end
-					end
-				end
-				return false
-			end
-
-			-- attempt to get the pet's owner from tooltip
-			function GetPetOwnerFromTooltip(guid)
-				local set = guid and Skada.current
-				local actors = set and set.actors
+				-- otherwise, search among actors.
 				if not actors then return end
+				for actorname, actor in pairs(actors) do
+					if actor.id == guid then
+						return actor.id, actorname
+					end
+				end
+			end
 
-				pettooltip:SetOwner(WorldFrame, "ANCHOR_NONE")
-				pettooltip:ClearLines()
-				pettooltip:SetHyperlink(format("unit:%s", guid))
+			function GetPetOwnerFromTooltip(guid)
+				local data = guid and C_TooltipInfo.GetHyperlink(format("unit:%s", guid))
+				if not data then return end
 
-				-- we only need to scan the 2nd line.
-				local text = _G["SkadaPetTooltipTextLeft2"] and _G["SkadaPetTooltipTextLeft2"]:GetText()
-				if text and text ~= "" then
-					for actorname, actor in pairs(actors) do
-						local name = not actor.enemy and gsub(actorname, "%-.*", "")
-						if name and ((LOCALE_ruRU and FindNameDeclension(text, name)) or ValidatePetOwner(text, name)) then
-							return actor.id, actorname
+				-- list of actors used to search for owner.
+				local actors = Skada.current and Skada.current.actors
+
+				-- the following should be enough for most cases.
+				for _, line in next, data.lines do
+					TooltipUtil.SurfaceArgs(line)
+					if line.type == Enum_UnitOwner and line.guid then
+						return FindPetOwner(line.guid, actors)
+					end
+				end
+
+				-- Rogue's Secrect Technique: Akaari's Soul
+				-- data.guid seems to point to the owner.
+				if data.guid and find(data.guid, "^P") then
+					local ownerGUID, ownerName = FindPetOwner(data.guid, actors)
+					if ownerGUID and ownerName then
+						return ownerGUID, ownerName
+					end
+				end
+
+				-- last hope, we use line.unitToken that seems to
+				-- exist when the pet belongs to the "player".
+				local ownerGUID, ownerName
+				for _, line in next, data.lines do
+					if line.unitToken then
+						ownerGUID = UnitGUID(line.unitToken)
+						if ownerGUID and find(ownerGUID, "^P") then
+							ownerGUID, ownerName = FindPetOwner(ownerGUID, actors)
+							if ownerGUID and ownerName then
+								return ownerGUID, ownerName
+							end
 						end
 					end
 				end
@@ -1574,7 +1571,6 @@ do
 			end
 		end
 
-		local UnitGUID, UnitFullName = UnitGUID, Private.UnitFullName
 		local function FixPetsHandler(guid, flag)
 			local guidOrClass = guid and guidToClass[guid]
 			if guidOrClass and guidToName[guidOrClass] then
@@ -1583,7 +1579,7 @@ do
 
 			-- flag is provided and it is mine.
 			if guid and flag and Skada:IsMine(flag) then
-				guidToClass[guid] = Skada.userGUID
+				guidToOwner[guid] = Skada.userGUID
 				return Skada.userGUID, Skada.userName
 			end
 
@@ -1593,14 +1589,14 @@ do
 				local ownerUnit = GetPetOwnerUnit(guid)
 				if ownerUnit then
 					local ownerGUID = UnitGUID(ownerUnit)
-					guidToClass[guid] = UnitGUID(ownerUnit)
+					guidToOwner[guid] = ownerGUID
 					return ownerGUID, UnitFullName(ownerUnit)
 				end
 
 				-- guess the pet from tooltip.
 				local ownerGUID, ownerName = GetPetOwnerFromTooltip(guid)
 				if ownerGUID and ownerName then
-					guidToClass[guid] = ownerGUID
+					guidToOwner[guid] = ownerGUID
 					return ownerGUID, ownerName
 				end
 			end
@@ -1837,31 +1833,45 @@ do
 			local BITMASK_PETS = Private.BITMASK_PETS
 
 			function ARGS_MT.SourceInGroup(args, nopets)
-				if bit_band(args.srcFlags, BITMASK_GROUP) ~= 0 then
-					if nopets then
-						return (bit_band(args.srcFlags, BITMASK_PETS) == 0)
-					end
-					return true
+				if bit_band(args.srcFlags, BITMASK_GROUP) == 0 then
+					return false
 				end
-				return false
+				if nopets then
+					return (bit_band(args.srcFlags, BITMASK_PETS) == 0)
+				end
+				return true
 			end
+
 			function ARGS_MT.DestInGroup(args, nopets)
-				if bit_band(args.dstFlags, BITMASK_GROUP) ~= 0 then
-					if nopets then
-						return (bit_band(args.dstFlags, BITMASK_PETS) == 0)
-					end
-					return true
+				if bit_band(args.dstFlags, BITMASK_GROUP) == 0 then
+					return false
 				end
-				return false
+				if nopets then
+					return (bit_band(args.dstFlags, BITMASK_PETS) == 0)
+				end
+				return true
 			end
 
-			function ARGS_MT.SourceIsPet(args)
-				return (bit_band(args.srcFlags, BITMASK_PETS) ~= 0)
+			function ARGS_MT.SourceIsPet(args, ingroup)
+				if (bit_band(args.srcFlags, BITMASK_PETS) == 0) then
+					return false
+				end
+				if ingroup then
+					return (guidToOwner[args.srcGUID] ~= nil)
+				end
+				return true
 			end
 
-			-- checks whether the give guid/flags are pets
-			local guidToClass = Private.guidToClass
+			-- owner=true? acts like "ingroup" (SourceIsPet)
 			function ARGS_MT.DestIsPet(args, owner)
+				if (bit_band(args.dstFlags, BITMASK_PETS) == 0) then
+					return false
+				end
+				if owner == true then
+					return (guidToOwner[args.dstGUID] ~= nil)
+				end
+
+				-- owner provided? check for affiliation.
 				if owner then
 					if bit_band(args.srcFlags, BITMASK_GROUP) ~= 0 then
 						return true -- owner is a group member?
@@ -1869,12 +1879,13 @@ do
 					if bit_band(args.srcFlags, BITMASK_PETS) ~= 0 then
 						return true -- summoned by another pet?
 					end
-					if bit_band(args.dstFlags, BITMASK_PETS) ~= 0 and guidToClass[args.dstGUID] then
+					if guidToClass[args.dstGUID] then
 						return true -- already known pet
 					end
 					return false
 				end
-				return (bit_band(args.dstFlags, BITMASK_PETS) ~= 0)
+
+				return true
 			end
 		end
 
@@ -1918,7 +1929,13 @@ do
 
 	-- trigger events used for first hit check
 	-- Edit Skada\Core\Tables.lua <trigger_events>
-	local TRIGGERS = Skada.trigger_events
+	local TRIGGER_EVENTS = Skada.trigger_events
+
+	-- specific events used for specific reasons.
+	local SWING_EVENTS = {SWING_DAMAGE = true, SWING_MISSED = true}
+	local ENVIRONMENT_EVENTS = {ENVIRONMENTAL_DAMAGE = true, ENVIRONMENTAL_MISSED = true}
+	local DOT_EVENTS = {SPELL_PERIODIC_DAMAGE = true, SPELL_PERIODIC_MISSED = true}
+	local HOT_EVENTS = {SPELL_PERIODIC_HEAL = true, SPELL_PERIODIC_ENERGIZE = true}
 
 	-- combat log handler
 	function Skada:ParseCombatLog(timestamp, event, ...)
@@ -1932,19 +1949,19 @@ do
 			return -- queue for later!
 		end
 
-		if event == "SWING_DAMAGE" or event == "SWING_MISSED" then
+		if SWING_EVENTS[event] then
 			args.spellid = 6603
 			args.spellname = L["Melee"]
 			args.spellschool = 0x01
-		elseif (event == "ENVIRONMENTAL_DAMAGE" or event == "ENVIRONMENTAL_MISSED") and args.envtype then
+		elseif ENVIRONMENT_EVENTS[event] and args.envtype then
 			local envtype = strlower(args.envtype)
 			args.spellid = environment_ids[envtype]
 			args.spellname = environment_names[envtype]
 			args.spellschool = environment_schools[envtype]
 			args.srcName = L["Environment"]
-		elseif event == "SPELL_PERIODIC_DAMAGE" or event == "SPELL_PERIODIC_MISSED" or args.auratype == "DEBUFF" then
+		elseif DOT_EVENTS[event] or args.auratype == "DEBUFF" then
 			args.is_dot = true
-		elseif event == "SPELL_PERIODIC_HEAL" or event == "SPELL_PERIODIC_ENERGIZE" then
+		elseif HOT_EVENTS[event] then
 			args.is_hot = true
 		end
 
@@ -1978,29 +1995,32 @@ do
 			args.spellid, args.spellname, args.spellschool = 6603, L["Melee"], 0x01
 		end
 
+		-- the event happens within the group?
+		args.inside_event = args:SourceInGroup() or args:DestInGroup()
+
 		if args.spellid and args.spellschool and not args.spellstring then
 			args.spellstring = format((args.is_dot or args.is_hot) and "-%s.%s" or "%s.%s", args.spellid, args.spellschool)
-			if args:SourceInGroup() or args:DestInGroup() then
+			if args.inside_event then
 				callbacks:Fire("Skada_SpellString", args, args.spellid, args.spellstring)
 			end
 		end
 
 		if args.extraspellid and args.extraschool and not args.extrastring then
 			args.extrastring = format("%s.%s", args.extraspellid, args.extraschool)
-			if args:SourceInGroup() or args:DestInGroup() then
+			if args.inside_event then
 				callbacks:Fire("Skada_SpellString", args, args.extraspellid, args.extrastring)
 			end
 		end
 
 		if args.absorbSpellid and args.absorbSpellschool and not args.absorbSpellstring then
 			args.absorbSpellstring = format("%s.%s", args.absorbSpellid, args.absorbSpellschool)
-			if args:SourceInGroup() or args:DestInGroup() then
+			if args.inside_event then
 				callbacks:Fire("Skada_SpellString", args, args.absorbSpellid, args.absorbSpellstring)
 			end
 		end
 
 		-- check first hit!
-		if self.profile.firsthit and TRIGGERS[args.event] and not self.firsthit and (args:SourceInGroup() or args:DestInGroup()) then
+		if self.profile.firsthit and TRIGGER_EVENTS[args.event] and not self.firsthit and (args:SourceInGroup() or args:DestInGroup()) then
 			self:CheckFirstHit(args)
 		end
 
@@ -2013,9 +2033,8 @@ end
 -- group buffs scanner
 
 do
-	local UnitGUID, UnitIsDeadOrGhost, UnitBuff = UnitGUID, UnitIsDeadOrGhost, UnitBuff
-	local UnitIterator, UnitFullName = Skada.UnitIterator, Private.UnitFullName
-	local guidToClass, guidToName = Private.guidToClass, Private.guidToName
+	local UnitIsDeadOrGhost, UnitBuff = UnitIsDeadOrGhost, UnitBuff
+	local UnitIterator = Skada.UnitIterator
 	local actorflags = Private.DEFAULT_FLAGS
 	local clear = Private.clearTable
 
@@ -2087,8 +2106,7 @@ end
 -- first hit check
 
 do
-	local UnitExists, UnitClass = UnitExists, UnitClass
-	local UnitName, UnitFullName = UnitName, Private.UnitFullName
+	local UnitExists, UnitName = UnitExists, UnitName
 	local SpellLink = Private.SpellLink or GetSpellLink
 	local IsPet, uformat = Private.IsPet, Private.uformat
 	local ignored_spells = Skada.ignored_spells.firsthit
@@ -2176,7 +2194,7 @@ do
 				if t.targetline then
 					Skada:Print(t.targetline)
 				end
-				Skada:Debug("First Hit: Printed!")
+				Skada:Debug("\124cffffbb00First Hit\124r: Printed!")
 			end
 		end
 
@@ -2192,7 +2210,7 @@ do
 		function Skada:ClearFirstHit()
 			if self.firsthit then
 				self.firsthit = self.firsthit:free()
-				self:Debug("First Hit: Cleared!")
+				self:Debug("\124cffffbb00First Hit\124r: Cleared!")
 			end
 			if firsthit_timer then
 				self:CancelTimer(firsthit_timer, true)

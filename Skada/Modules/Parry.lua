@@ -1,7 +1,7 @@
 local _, Skada = ...
 local Private = Skada.Private
 if not Private.IsWotLK() then return end
-Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M)
+Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M, O)
 	local mode = Skada:NewModule("Parry-Haste")
 	local mode_target = mode:NewModule("Target List")
 	local pairs, format, uformat = pairs, string.format, Private.uformat
@@ -133,7 +133,7 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M)
 			filterclass = true,
 			click1 = mode_target,
 			columns = {Count = true, Percent = false, sPercent = false},
-			icon = [[Interface\Icons\ability_parry]]
+			icon = [[Interface\ICONS\ability_parry]]
 		}
 
 		mode_cols = self.metadata.columns
@@ -158,7 +158,7 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M)
 	function mode:OnInitialize()
 		M.parrychannel = M.parrychannel or "AUTO"
 
-		Skada.options.args.modules.args.Parry = {
+		O.modules.args.Parry = {
 			type = "group",
 			name = self.localeName,
 			desc = format(L["Options for %s."], self.localeName),
@@ -167,7 +167,7 @@ Skada:RegisterModule("Parry-Haste", function(L, P, _, _, M)
 					type = "description",
 					name = self.localeName,
 					fontSize = "large",
-					image = [[Interface\Icons\ability_parry]],
+					image = [[Interface\ICONS\ability_parry]],
 					imageWidth = 18,
 					imageHeight = 18,
 					imageCoords = {0.05, 0.95, 0.05, 0.95},
