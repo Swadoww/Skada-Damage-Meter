@@ -1,15 +1,21 @@
 local _, Skada = ...
 Skada:RegisterModule("Healthstones", function(L)
 	local mode = Skada:NewModule("Healthstones")
-
-	local healthstones = {
-		[GetSpellInfo(47877)] = true, -- Master Healthstone
-		[GetSpellInfo(23477)] = true, -- Major Healthstone
-		[GetSpellInfo(23474)] = true, -- Greater Healthstone
-		[GetSpellInfo(5720)]  = true, -- Healthstone
-		[GetSpellInfo(6263)]  = true, -- Lesser Healthstone
-		[GetSpellInfo(23469)] = true, -- Minor Healthstone
-	}
+	local healthstones
+	if Skada.Private.IsWotLK() then
+		healthstones = {
+			[GetSpellInfo(47877)] = true, -- Master Healthstone
+			[GetSpellInfo(23477)] = true, -- Major Healthstone
+			[GetSpellInfo(23474)] = true, -- Greater Healthstone
+			[GetSpellInfo(5720)]  = true, -- Healthstone
+			[GetSpellInfo(6263)]  = true, -- Lesser Healthstone
+			[GetSpellInfo(23469)] = true, -- Minor Healthstone
+		}
+	else
+		healthstones = {
+			[GetSpellInfo(6262)] = true, -- Healthstone
+		}
+	end
 
 	local format = string.format
 	local mode_cols = nil
