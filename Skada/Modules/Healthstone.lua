@@ -1,8 +1,15 @@
 local _, Skada = ...
 Skada:RegisterModule("Healthstones", function(L)
 	local mode = Skada:NewModule("Healthstones")
-	local stonespell = 6262
-	local stonename = GetSpellInfo(stonespell)
+
+	local healthstones = {
+		[GetSpellInfo(47877)] = true, -- Master Healthstone
+		[GetSpellInfo(23477)] = true, -- Major Healthstone
+		[GetSpellInfo(23474)] = true, -- Greater Healthstone
+		[GetSpellInfo(5720)]  = true, -- Healthstone
+		[GetSpellInfo(6263)]  = true, -- Lesser Healthstone
+		[GetSpellInfo(23469)] = true, -- Minor Healthstone
+	}
 
 	local format = string.format
 	local mode_cols = nil
@@ -27,7 +34,7 @@ Skada:RegisterModule("Healthstones", function(L)
 	end
 
 	local function stone_used(t)
-		if (t.spellid and t.spellid == stonespell) or (t.spellname and t.spellname == stonename) then
+		if (t.spellname and healthstones[t.spellname]) then
 			Skada:DispatchSets(log_healthstone, t.srcName, t.srcGUID, t.srcFlags)
 		end
 	end
@@ -62,7 +69,6 @@ Skada:RegisterModule("Healthstones", function(L)
 	end
 
 	function mode:OnEnable()
-		stonename = stonename or GetSpellInfo(47874)
 		self.metadata = {
 			showspots = true,
 			ordersort = true,
